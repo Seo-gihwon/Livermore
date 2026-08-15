@@ -1,0 +1,8 @@
+{
+  "name": "livermore",
+  "description": "Hermes-style memory capacity cap and periodic self-improvement review (auto skill generation) for Claude Code",
+  "version": "0.1.0",
+  "author": {
+    "name": "seo-gihwon"
+  }
+}
