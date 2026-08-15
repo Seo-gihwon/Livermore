@@ -1,0 +1,11 @@
+{
+  "memory_index_max_lines": 20,
+  "memory_index_max_bytes": 4096,
+  "review_interval": 10,
+  "review_model": "claude-haiku-4-5-20251001",
+  "review_enabled": true,
+  "memory_cap_enabled": true,
+  "claude_command": "claude",
+  "digest_message_count": 24,
+  "digest_message_max_chars": 1000
+}
