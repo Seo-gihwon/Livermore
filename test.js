@@ -222,6 +222,22 @@ test('self-review: digest contains only the last 24 messages', () => {
   assert.ok(prompt.includes('auto-'), 'prompt must state the auto- prefix rule');
   assert.ok(prompt.includes('skills-archive'), 'prompt must state archive-instead-of-delete rule');
   assert.ok(prompt.includes('Nothing to save'), 'prompt must keep the no-op option');
+  // Regression guard: with a merely advisory "you should usually save", the
+  // review model reads the Never-save list as license to save nothing at all
+  // and the feature silently becomes a no-op. The action signals must stay
+  // binding, and the Never-save list must be scoped to content only.
+  assert.ok(
+    /MUST create or patch a skill/.test(prompt),
+    'action signals must oblige a write, not merely suggest one'
+  );
+  assert.ok(
+    /not available to you/i.test(prompt),
+    'prompt must close the no-op escape hatch when an action signal is present'
+  );
+  assert.ok(
+    /constrain WHAT you write/.test(prompt),
+    'Never-save list must be scoped to content, not to the write/no-write decision'
+  );
 });
 
 test('self-review: long messages are truncated to digest_message_max_chars', () => {

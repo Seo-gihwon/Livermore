@@ -73,18 +73,24 @@ function buildPrompt(digest) {
   return `You are running a background self-improvement review of a recent Claude Code conversation.
 
 ## Goal
-Find procedures, corrections, and solutions from this conversation that are worth reusing, and save them as skills. Most sessions leave at least one small update behind. A pass that saves nothing is not neutral — it is a lost learning opportunity. That said, "Nothing to save" is a real option: do not invent value that is not there.
+Find procedures, corrections, and solutions from this conversation that are worth reusing, and save them as skills. Most sessions leave at least one small update behind. A pass that saves nothing is not neutral — it is a lost learning opportunity.
 
-## Action signals (any of these usually means you should save something)
-- The user corrected your style or workflow.
-- A non-obvious technique, workaround, or debugging path was used.
+## Decision procedure — follow it in order, do not skip to the end
+Step 1. Check the digest against each action signal below.
+Step 2. If ANY action signal is present, you MUST create or patch a skill. "Nothing to save" is NOT available to you in that case. Your job then is to decide WHAT to write, not WHETHER to write.
+Step 3. Only if NO action signal is present may you reply "Nothing to save".
+
+## Action signals
+- The user corrected your style, workflow, or tool choice — including a preference they had to repeat. A stated preference is class-level by definition: it applies to every future session, so never dismiss it as "just project configuration".
+- A non-obvious technique, workaround, root cause, or debugging path was used. If it took more than one attempt to get right, it counts.
 - An existing auto skill turned out to be wrong or incomplete during this session.
 
 ## Priorities
 - Prefer PATCHING an existing auto skill over creating a new one.
-- Skills must be class-level (a broad recurring topic), never a narrative of this one session. One skill per session is forbidden as a pattern.
+- Skills must be class-level (a broad recurring topic), never a narrative of this one session. One skill per session is forbidden as a pattern. When the specific instance is too narrow, generalize it — do not discard it.
 
 ## Never save
+These constrain WHAT you write. They are not grounds for writing nothing when an action signal is present — generalize past them instead.
 - Environment-dependent failures (missing binary, unset credential).
 - Negative claims about tools or features ("X does not work") — they keep blocking you for months after the problem is fixed.
 - Session-specific transient errors.
