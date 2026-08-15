@@ -145,33 +145,79 @@ function main() {
   fs.writeFileSync(promptFile, prompt);
 
   // Prompt goes in via stdin (fd redirect) — argv would hit the ~32K command
-  // line limit on Windows. Comma-separated --allowedTools: spawn with
-  // shell:true does not re-quote args, so no spaces allowed inside one arg.
-  const args = ['-p', '--model', config.review_model, '--allowedTools', 'Read,Glob,Grep,Write,Edit'];
-
+  // line limit on Windows.
   if (process.env.LIVERMORE_DRYRUN === '1') {
     process.stdout.write(
-      JSON.stringify({ dryrun: true, command: config.claude_command, args, prompt_file: promptFile })
+      JSON.stringify({
+        dryrun: true,
+        command: config.claude_command,
+        args: reviewArgs(config),
+        prompt_file: promptFile
+      })
     );
     return 0;
   }
 
+  launchReview(config, promptFile);
+  return 0;
+}
+
+function launchReview(config, promptFile) {
+  if (process.platform === 'win32') {
+    // Windows: a detached claude dies immediately (cmd.exe/claude exits 1
+    // without a console), and a non-detached claude is killed by libuv's
+    // kill-on-close job when this hook exits. A plain detached node process
+    // survives both, so relaunch this script as a hidden keeper that spawns
+    // claude non-detached and stays alive until the review finishes.
+    // (Verified on a real Windows 11 machine — see PR notes.)
+    const child = spawn(process.execPath, [__filename, '--spawn', promptFile], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    child.on('error', () => {}); // background launch is best-effort
+    child.unref();
+    return;
+  }
+
   const promptFd = fs.openSync(promptFile, 'r');
   try {
-    const child = spawn(config.claude_command, args, {
+    const child = spawn(config.claude_command, reviewArgs(config), {
       detached: true,
       stdio: [promptFd, 'ignore', 'ignore'],
-      env: Object.assign({}, process.env, { LIVERMORE_REVIEW: '1' }),
-      // Windows: `claude` may be a .cmd shim, which cannot be spawned without a
-      // shell. shell:true uses cmd.exe (NOT PowerShell — Cylance-safe).
-      shell: process.platform === 'win32'
+      env: Object.assign({}, process.env, { LIVERMORE_REVIEW: '1' })
     });
     child.on('error', () => {}); // background launch is best-effort
     child.unref();
   } finally {
     fs.closeSync(promptFd);
   }
-  return 0;
 }
 
-process.exit(main());
+function reviewArgs(config) {
+  // Comma-separated --allowedTools: Windows spawns claude via shell:true,
+  // which does not re-quote args, so no spaces allowed inside one arg.
+  return ['-p', '--model', config.review_model, '--allowedTools', 'Read,Glob,Grep,Write,Edit'];
+}
+
+// Windows keeper mode: runs detached from the hook, parents the review
+// process for its whole lifetime (a `claude` .cmd shim needs shell:true —
+// cmd.exe, NOT PowerShell — Cylance-safe).
+function spawnMode(promptFile) {
+  const config = loadConfig();
+  const promptFd = fs.openSync(promptFile, 'r');
+  const child = spawn(config.claude_command, reviewArgs(config), {
+    stdio: [promptFd, 'ignore', 'ignore'],
+    env: Object.assign({}, process.env, { LIVERMORE_REVIEW: '1' }),
+    windowsHide: true,
+    shell: true
+  });
+  child.on('error', () => process.exit(1));
+  child.on('close', () => process.exit(0));
+}
+
+if (process.argv[2] === '--spawn' && process.argv[3]) {
+  spawnMode(process.argv[3]);
+} else {
+  process.exit(main());
+}
